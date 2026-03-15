@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>EMI Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'League Spartan',sans-serif;background:#000005;color:#e8f0fe;min-height:100vh;overflow-x:hidden}
+    #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+    .wrap{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:28px 16px 60px}
+
+    /* HEADER */
+    .header{text-align:center;padding:24px 0 28px}
+    .header h1{font-size:2.4rem;font-weight:900;letter-spacing:3px;text-transform:uppercase;line-height:1.1;color:#fff}
+    .header h1 span{background:linear-gradient(90deg,#4a90d9,#1877f2,#60a5fa,#1877f2,#4a90d9);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 3s linear infinite}
+    @keyframes shimmer{0%{background-position:0% center}100%{background-position:300% center}}
+    .header p{font-size:12px;letter-spacing:3px;color:rgba(74,144,217,0.5);text-transform:uppercase;margin-top:8px;font-weight:700}
+
+    /* TABS */
+    .tabs{display:flex;gap:6px;justify-content:center;margin-bottom:24px}
+    .tab-btn{background:rgba(74,144,217,0.06);border:1px solid rgba(74,144,217,0.2);color:rgba(74,144,217,0.5);border-radius:8px;padding:9px 24px;font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all 0.2s;text-transform:uppercase}
+    .tab-btn:hover{background:rgba(74,144,217,0.12);color:rgba(74,144,217,0.8)}
+    .tab-btn.active{background:rgba(24,119,242,0.2);border-color:#1877f2;color:#60a5fa;box-shadow:0 0 16px rgba(24,119,242,0.25)}
+
+    /* CARD */
+    .card{background:rgba(24,119,242,0.04);border:1px solid rgba(74,144,217,0.15);border-radius:18px;padding:24px;margin-bottom:20px;box-shadow:0 4px 32px rgba(0,0,0,0.4)}
+    .card-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(74,144,217,0.5);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+    .card-title::after{content:'';flex:1;height:1px;background:rgba(74,144,217,0.1)}
+
+    /* INPUTS */
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(74,144,217,0.5)}
+    .input-row{display:flex;align-items:center;background:rgba(74,144,217,0.05);border:1px solid rgba(74,144,217,0.2);border-radius:10px;overflow:hidden;transition:border 0.2s,box-shadow 0.2s}
+    .input-row:focus-within{border-color:#1877f2;box-shadow:0 0 0 3px rgba(24,119,242,0.12)}
+    .prefix,.suffix{padding:10px 12px;font-size:13px;font-weight:700;color:rgba(74,144,217,0.4);background:rgba(74,144,217,0.08)}
+    .prefix{border-right:1px solid rgba(74,144,217,0.15)}
+    .suffix{border-left:1px solid rgba(74,144,217,0.15)}
+    .input-row input,.input-row select{flex:1;background:none;border:none;outline:none;color:#e8f0fe;font-family:'League Spartan',sans-serif;font-size:15px;font-weight:600;padding:10px 14px;width:100%}
+    .input-row input::placeholder{color:rgba(74,144,217,0.2)}
+    .input-row select option{background:#000005;color:#e8f0fe}
+
+    /* SLIDER */
+    .slider-wrap{margin-top:6px}
+    input[type=range]{width:100%;accent-color:#1877f2;cursor:pointer;height:4px}
+    .slider-labels{display:flex;justify-content:space-between;font-size:10px;color:rgba(74,144,217,0.35);font-weight:700;letter-spacing:1px;margin-top:4px}
+
+    /* CALC BTN */
+    .calc-btn{width:100%;padding:14px;background:linear-gradient(135deg,#1877f2,#1565c0);color:#fff;border:none;border-radius:12px;font-family:'League Spartan',sans-serif;font-size:16px;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:4px}
+    .calc-btn:hover{background:linear-gradient(135deg,#2196f3,#1877f2);box-shadow:0 0 24px rgba(24,119,242,0.4);transform:translateY(-1px)}
+    .calc-btn:active{transform:scale(0.98)}
+
+    /* METRICS */
+    .results-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .metric{background:rgba(24,119,242,0.06);border:1px solid rgba(74,144,217,0.15);border-radius:14px;padding:16px;text-align:center;transition:all 0.2s}
+    .metric.highlight{border-color:#1877f2;background:rgba(24,119,242,0.12);box-shadow:0 0 20px rgba(24,119,242,0.15)}
+    .metric.danger{border-color:#ef5350;background:rgba(239,83,80,0.08)}
+    .metric-val{font-size:1.55rem;font-weight:900;color:#60a5fa;letter-spacing:1px}
+    .metric-val.red{color:#ef9a9a}
+    .metric-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(74,144,217,0.4);margin-top:5px}
+
+    /* DONUT WRAP */
+    .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center}
+    .chart-box{position:relative;height:220px;display:flex;align-items:center;justify-content:center}
+    .chart-legend{display:flex;flex-direction:column;gap:10px}
+    .legend-item{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}
+    .legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+    /* AMORTIZATION */
+    .amort-table-wrap{max-height:320px;overflow-y:auto;border-radius:10px;border:1px solid rgba(74,144,217,0.1)}
+    .amort-table-wrap::-webkit-scrollbar{width:4px}
+    .amort-table-wrap::-webkit-scrollbar-thumb{background:rgba(74,144,217,0.3);border-radius:4px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    thead{position:sticky;top:0;z-index:2}
+    th{background:#000005;padding:10px 12px;text-align:right;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(74,144,217,0.5);border-bottom:1px solid rgba(74,144,217,0.1);font-size:10px}
+    th:first-child{text-align:center}
+    td{padding:9px 12px;border-bottom:1px solid rgba(74,144,217,0.05);text-align:right;color:#c5d8ff;font-weight:600}
+    td:first-child{text-align:center;color:rgba(74,144,217,0.5)}
+    tr:hover td{background:rgba(74,144,217,0.04)}
+    tr:last-child td{border-bottom:none}
+
+    /* COMPARE SIDE BY SIDE */
+    .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .loan-card{background:rgba(24,119,242,0.04);border:1px solid rgba(74,144,217,0.2);border-radius:14px;padding:20px}
+    .loan-card h3{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#60a5fa;margin-bottom:16px;text-align:center}
+    .loan-card.winner{border-color:#1877f2;box-shadow:0 0 20px rgba(24,119,242,0.2)}
+    .winner-badge{display:inline-block;background:rgba(24,119,242,0.2);color:#60a5fa;font-size:10px;font-weight:800;letter-spacing:1.5px;padding:3px 10px;border-radius:20px;margin-left:8px;text-transform:uppercase}
+    .compare-metric{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(74,144,217,0.06);font-size:13px}
+    .compare-metric:last-child{border-bottom:none}
+    .compare-metric .lbl{color:rgba(74,144,217,0.5);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+    .compare-metric .val{font-weight:800;color:#e8f0fe}
+    .compare-metric .val.better{color:#4ade80}
+    .compare-metric .val.worse{color:#ef9a9a}
+    .compare-diff{text-align:center;padding:16px;background:rgba(24,119,242,0.06);border-radius:12px;margin-top:16px;font-size:13px;color:#c5d8ff;font-weight:600;line-height:1.7}
+    .compare-diff span{color:#60a5fa;font-weight:800}
+
+    .hidden{display:none}
+    .footer-row{display:flex;justify-content:center;margin-top:8px}
+    .reset-btn{background:none;border:1px solid rgba(74,144,217,0.15);color:rgba(74,144,217,0.3);border-radius:8px;padding:8px 20px;font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all 0.2s;text-transform:uppercase}
+    .reset-btn:hover{border-color:rgba(74,144,217,0.4);color:rgba(74,144,217,0.6)}
+
+    @media(max-width:640px){
+      .grid-2,.grid-3,.results-grid,.compare-grid,.chart-row{grid-template-columns:1fr}
+      .header h1{font-size:1.7rem}
+      .chart-box{height:180px}
+    }
+  </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="wrap">
+
+  <div class="header">
+    <h1>EMI <span>CALCULATOR</span></h1>
+    <p>by Desi Rich Kid</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('emi',this)">EMI Calculator</button>
+    <button class="tab-btn" onclick="switchTab('compare',this)">Compare 2 Loans</button>
+  </div>
+
+  <!-- EMI TAB -->
+  <div id="tab-emi">
+    <div class="card">
+      <div class="card-title">Loan Details</div>
+      <div class="grid-3" style="margin-bottom:18px">
+        <div class="field">
+          <label>Loan Amount</label>
+          <div class="input-row"><span class="prefix">&#8377;</span><input type="number" id="e_amt" placeholder="500000" oninput="updateSlider('e_amt','sl_amt',100000,10000000);calcEMI()"></div>
+          <div class="slider-wrap">
+            <input type="range" id="sl_amt" min="100000" max="10000000" step="50000" value="500000" oninput="updateFromSlider('sl_amt','e_amt');calcEMI()">
+            <div class="slider-labels"><span>&#8377;1L</span><span>&#8377;1Cr</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Annual Interest Rate</label>
+          <div class="input-row"><input type="number" id="e_rate" placeholder="10.5" step="0.1" oninput="updateSlider('e_rate','sl_rate',1,36);calcEMI()"><span class="suffix">%</span></div>
+          <div class="slider-wrap">
+            <input type="range" id="sl_rate" min="1" max="36" step="0.1" value="10.5" oninput="updateFromSlider('sl_rate','e_rate');calcEMI()">
+            <div class="slider-labels"><span>1%</span><span>36%</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Loan Tenure</label>
+          <div class="input-row"><input type="number" id="e_tenure" placeholder="60" oninput="updateSlider('e_tenure','sl_tenure',1,360);calcEMI()"><div class="input-row" style="border:none;background:none;padding:0"><select id="e_unit" onchange="calcEMI()" style="padding:10px 8px;color:#e8f0fe;background:transparent;border:none;outline:none;font-family:League Spartan,sans-serif;font-size:13px;font-weight:700"><option value="months">Mo</option><option value="years">Yr</option></select></div></div>
+          <div class="slider-wrap">
+            <input type="range" id="sl_tenure" min="1" max="360" step="1" value="60" oninput="updateFromSlider('sl_tenure','e_tenure');calcEMI()">
+            <div class="slider-labels"><span>1</span><span>360 Mo</span></div>
+          </div>
+        </div>
+      </div>
+      <button class="calc-btn" onclick="calcEMI()">Calculate EMI &#x26A1;</button>
+    </div>
+
+    <div class="card hidden" id="emi-results">
+      <div class="card-title">Results</div>
+      <div class="results-grid" style="margin-bottom:20px">
+        <div class="metric highlight"><div class="metric-val" id="r_emi">&#8377;0</div><div class="metric-lbl">Monthly EMI</div></div>
+        <div class="metric"><div class="metric-val" id="r_total">&#8377;0</div><div class="metric-lbl">Total Payment</div></div>
+        <div class="metric danger"><div class="metric-val red" id="r_interest">&#8377;0</div><div class="metric-lbl">Total Interest</div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-box"><canvas id="donutChart"></canvas></div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#1877f2"></div><span>Principal: <strong id="leg_principal">-</strong></span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div><span>Interest: <strong id="leg_interest">-</strong></span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div><span style="color:rgba(74,144,217,0.6);font-size:12px">Interest % of Total:</span><strong id="leg_pct" style="color:#4ade80;margin-left:4px">-</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="emi-chart-card">
+      <div class="card-title">Monthly Breakdown</div>
+      <div style="height:220px"><canvas id="barChart"></canvas></div>
+    </div>
+
+    <div class="card hidden" id="emi-amort">
+      <div class="card-title">Amortization Schedule</div>
+      <div class="amort-table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>EMI</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+          <tbody id="amort-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARE TAB -->
+  <div id="tab-compare" class="hidden">
+    <div class="compare-grid">
+      <div class="loan-card" id="loan1-card">
+        <h3>Loan 1</h3>
+        <div class="field" style="margin-bottom:12px">
+          <label>Loan Amount</label>
+          <div class="input-row"><span class="prefix">&#8377;</span><input type="number" id="c1_amt" placeholder="500000" oninput="compareLoans()"></div>
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label>Annual Interest Rate</label>
+          <div class="input-row"><input type="number" id="c1_rate" placeholder="10.5" step="0.1" oninput="compareLoans()"><span class="suffix">%</span></div>
+        </div>
+        <div class="field">
+          <label>Tenure (months)</label>
+          <div class="input-row"><span class="prefix">#</span><input type="number" id="c1_tenure" placeholder="60" oninput="compareLoans()"></div>
+        </div>
+      </div>
+      <div class="loan-card" id="loan2-card">
+        <h3>Loan 2</h3>
+        <div class="field" style="margin-bottom:12px">
+          <label>Loan Amount</label>
+          <div class="input-row"><span class="prefix">&#8377;</span><input type="number" id="c2_amt" placeholder="500000" oninput="compareLoans()"></div>
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label>Annual Interest Rate</label>
+          <div class="input-row"><input type="number" id="c2_rate" placeholder="12" step="0.1" oninput="compareLoans()"><span class="suffix">%</span></div>
+        </div>
+        <div class="field">
+          <label>Tenure (months)</label>
+          <div class="input-row"><span class="prefix">#</span><input type="number" id="c2_tenure" placeholder="60" oninput="compareLoans()"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="compare-results" style="margin-top:20px">
+      <div class="card-title">Side by Side Comparison</div>
+      <div class="compare-grid">
+        <div>
+          <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#60a5fa;margin-bottom:12px;text-align:center">LOAN 1 <span class="winner-badge hidden" id="w1">WINNER</span></div>
+          <div id="c1-metrics"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#60a5fa;margin-bottom:12px;text-align:center">LOAN 2 <span class="winner-badge hidden" id="w2">WINNER</span></div>
+          <div id="c2-metrics"></div>
+        </div>
+      </div>
+      <div class="compare-diff" id="compare-diff"></div>
+    </div>
+  </div>
+
+  <div class="footer-row"><button class="reset-btn" onclick="resetAll()">Reset All</button></div>
+</div>
+
+<script>
+/* BG — Deep space: galaxy, nebula, shooting stars, black holes */
+(function(){
+  var canvas = document.getElementById('bg-canvas');
+  var ctx = canvas.getContext('2d');
+  var W, H;
+  var mouse = { x: 500, y: 400 };
+  var t = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+  /* star field — 3 layers for depth parallax */
+  var layers = [
+    { stars: [], speed: 0.0, size: 0.6, alpha: 0.4 },
+    { stars: [], speed: 0.0, size: 1.1, alpha: 0.65 },
+    { stars: [], speed: 0.0, size: 1.8, alpha: 0.9 }
+  ];
+  layers.forEach(function(layer, li) {
+    var count = li === 0 ? 200 : li === 1 ? 100 : 50;
+    for (var i = 0; i < count; i++) {
+      layer.stars.push({
+        x: Math.random() * 1920,
+        y: Math.random() * 1080,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.015 + Math.random() * 0.03,
+        twinkle: Math.random() > 0.7
+      });
+    }
+  });
+
+  /* shooting stars */
+  var shoots = [];
+  function spawnShoot() {
+    shoots.push({
+      x: Math.random() * W,
+      y: Math.random() * H * 0.5,
+      vx: 6 + Math.random() * 8,
+      vy: 2 + Math.random() * 4,
+      len: 80 + Math.random() * 120,
+      alpha: 1,
+      hue: 180 + Math.random() * 60
+    });
+  }
+  setInterval(spawnShoot, 1800);
+
+  /* nebula clouds — large soft blobs */
+  var nebulas = [
+    { x: 0.2, y: 0.3, r: 0.35, hue: 220, alpha: 0.025 },
+    { x: 0.75, y: 0.6, r: 0.3, hue: 260, alpha: 0.02 },
+    { x: 0.5, y: 0.8, r: 0.28, hue: 200, alpha: 0.022 },
+    { x: 0.85, y: 0.2, r: 0.25, hue: 240, alpha: 0.018 }
+  ];
+
+  /* black hole at mouse — gravity lens */
+  var BH_RADIUS = 40;
+  var BH_GRAVITY = 80;
+
+  /* planet — slowly orbits */
+  var planet = { angle: 0, orbitR: 0, cx: 0, cy: 0 };
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    t += 0.012;
+
+    /* nebula clouds */
+    nebulas.forEach(function(n) {
+      var grd = ctx.createRadialGradient(n.x*W, n.y*H, 0, n.x*W, n.y*H, n.r*W);
+      grd.addColorStop(0, 'hsla(' + n.hue + ',80%,50%,' + (n.alpha * 1.5) + ')');
+      grd.addColorStop(0.4, 'hsla(' + (n.hue+20) + ',70%,40%,' + n.alpha + ')');
+      grd.addColorStop(1, 'transparent');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+    });
+
+    /* milky way band */
+    var band = ctx.createLinearGradient(0, H*0.3, W, H*0.7);
+    band.addColorStop(0, 'transparent');
+    band.addColorStop(0.3, 'rgba(100,140,255,0.015)');
+    band.addColorStop(0.5, 'rgba(140,100,255,0.025)');
+    band.addColorStop(0.7, 'rgba(100,140,255,0.015)');
+    band.addColorStop(1, 'transparent');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, W, H);
+
+    /* star layers with parallax toward mouse */
+    layers.forEach(function(layer, li) {
+      var parallax = (li + 1) * 0.008;
+      layer.stars.forEach(function(s) {
+        if (s.twinkle) s.phase += s.speed;
+        var a = s.twinkle ? layer.alpha * (0.4 + 0.6 * Math.abs(Math.sin(s.phase))) : layer.alpha;
+
+        /* subtle parallax pull toward mouse */
+        var px = s.x + (mouse.x - W/2) * parallax;
+        var py = s.y + (mouse.y - H/2) * parallax;
+
+        /* black hole gravity distortion */
+        var bx = px - mouse.x, by = py - mouse.y;
+        var bd = Math.sqrt(bx*bx + by*by);
+        if (bd < BH_GRAVITY && bd > BH_RADIUS) {
+          var pull = (1 - (bd - BH_RADIUS) / (BH_GRAVITY - BH_RADIUS)) * 8;
+          var ba = Math.atan2(by, bx);
+          px -= Math.cos(ba) * pull;
+          py -= Math.sin(ba) * pull;
+          a *= (bd / BH_GRAVITY);
+        }
+        if (bd <= BH_RADIUS) return; /* swallowed */
+
+        ctx.beginPath();
+        ctx.arc(px, py, layer.size + (s.twinkle ? Math.abs(Math.sin(s.phase)) * 0.8 : 0), 0, Math.PI * 2);
+        /* color tint some stars */
+        var starHue = li === 2 ? (s.phase * 30 % 60 + 200) : 0;
+        ctx.fillStyle = li === 2 ? 'hsla(' + starHue + ',60%,90%,' + a + ')' : 'rgba(220,230,255,' + a + ')';
+        ctx.fill();
+      });
+    });
+
+    /* shooting stars */
+    shoots = shoots.filter(function(s) { return s.x < W + 200 && s.alpha > 0.02; });
+    shoots.forEach(function(s) {
+      s.x += s.vx; s.y += s.vy; s.alpha *= 0.988;
+      var grd = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * (s.len/s.vx), s.y - s.vy * (s.len/s.vx));
+      grd.addColorStop(0, 'hsla(' + s.hue + ',100%,90%,' + s.alpha + ')');
+      grd.addColorStop(0.3, 'hsla(' + s.hue + ',80%,75%,' + (s.alpha * 0.5) + ')');
+      grd.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(s.x - s.vx * (s.len / s.vx), s.y - s.vy * (s.len / s.vx));
+      ctx.strokeStyle = grd;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + s.alpha + ')';
+      ctx.fill();
+    });
+
+    /* black hole at mouse */
+    /* accretion disk rings */
+    for (var ring = 0; ring < 5; ring++) {
+      var rr = BH_RADIUS + ring * 10;
+      var ra = 0.06 - ring * 0.01;
+      ctx.beginPath();
+      ctx.ellipse(mouse.x, mouse.y, rr, rr * 0.35, t * 0.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(100,160,255,' + ra + ')';
+      ctx.lineWidth = 1.5 - ring * 0.2;
+      ctx.stroke();
+    }
+    /* dark core */
+    var bhGrd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, BH_RADIUS);
+    bhGrd.addColorStop(0, 'rgba(0,0,0,0.95)');
+    bhGrd.addColorStop(0.6, 'rgba(0,5,20,0.7)');
+    bhGrd.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, BH_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = bhGrd;
+    ctx.fill();
+    /* event horizon glow */
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, BH_RADIUS, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(80,120,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    /* orbiting planet */
+    planet.cx = W * 0.82; planet.cy = H * 0.2;
+    planet.orbitR = 55;
+    planet.angle += 0.004;
+    var px = planet.cx + Math.cos(planet.angle) * planet.orbitR;
+    var py = planet.cy + Math.sin(planet.angle) * planet.orbitR * 0.4;
+    /* orbit path */
+    ctx.beginPath();
+    ctx.ellipse(planet.cx, planet.cy, planet.orbitR, planet.orbitR * 0.4, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(74,144,217,0.08)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    /* planet body */
+    var pGrd = ctx.createRadialGradient(px - 3, py - 3, 0, px, py, 10);
+    pGrd.addColorStop(0, 'rgba(140,180,255,0.9)');
+    pGrd.addColorStop(0.5, 'rgba(80,120,220,0.8)');
+    pGrd.addColorStop(1, 'rgba(40,60,140,0.6)');
+    ctx.beginPath();
+    ctx.arc(px, py, 10, 0, Math.PI * 2);
+    ctx.fillStyle = pGrd;
+    ctx.fill();
+    /* planet ring */
+    ctx.beginPath();
+    ctx.ellipse(px, py, 18, 5, -0.3, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(180,210,255,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* HELPERS */
+function v(id){return parseFloat(document.getElementById(id).value)||0;}
+function fmt(n){return '\u20b9'+Math.round(n).toLocaleString('en-IN');}
+
+function updateSlider(inputId,sliderId,min,max){
+  var val=parseFloat(document.getElementById(inputId).value)||min;
+  val=Math.min(Math.max(val,min),max);
+  document.getElementById(sliderId).value=val;
+}
+function updateFromSlider(sliderId,inputId){
+  document.getElementById(inputId).value=document.getElementById(sliderId).value;
+}
+
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('tab-emi').classList.toggle('hidden',tab!=='emi');
+  document.getElementById('tab-compare').classList.toggle('hidden',tab!=='compare');
+}
+
+/* EMI CALC */
+var donutChartInst=null, barChartInst=null;
+
+function calcEMI(){
+  var P=v('e_amt');
+  var r=v('e_rate')/12/100;
+  var unit=document.getElementById('e_unit').value;
+  var n=unit==='years'?v('e_tenure')*12:v('e_tenure');
+  if(!P||!r||!n) return;
+
+  var emi=r===0?P/n:(P*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
+  var total=emi*n;
+  var interest=total-P;
+
+  document.getElementById('r_emi').innerHTML=fmt(emi);
+  document.getElementById('r_total').innerHTML=fmt(total);
+  document.getElementById('r_interest').innerHTML=fmt(interest);
+  document.getElementById('leg_principal').textContent=fmt(P);
+  document.getElementById('leg_interest').textContent=fmt(interest);
+  document.getElementById('leg_pct').textContent=(interest/total*100).toFixed(1)+'%';
+
+  ['emi-results','emi-chart-card','emi-amort'].forEach(function(id){document.getElementById(id).classList.remove('hidden');});
+
+  /* donut chart */
+  var dCtx=document.getElementById('donutChart').getContext('2d');
+  if(donutChartInst) donutChartInst.destroy();
+  donutChartInst=new Chart(dCtx,{type:'doughnut',data:{labels:['Principal','Interest'],datasets:[{data:[P,interest],backgroundColor:['#1877f2','#ef5350'],borderWidth:0,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+fmt(c.raw);}}}}}});
+
+  /* bar chart — yearly breakdown */
+  var balance=P, principals=[], interests=[], labels=[];
+  var yearly=Math.min(Math.ceil(n/12),30);
+  for(var y=1;y<=yearly;y++){
+    var yPrincipal=0,yInterest=0;
+    var months=Math.min(12,n-(y-1)*12);
+    for(var m=0;m<months;m++){
+      var iAmt=balance*r;
+      var pAmt=emi-iAmt;
+      yInterest+=iAmt; yPrincipal+=pAmt;
+      balance-=pAmt;
+    }
+    labels.push('Yr '+y);
+    principals.push(Math.round(yPrincipal));
+    interests.push(Math.round(yInterest));
+  }
+  var bCtx=document.getElementById('barChart').getContext('2d');
+  if(barChartInst) barChartInst.destroy();
+  barChartInst=new Chart(bCtx,{type:'bar',data:{labels:labels,datasets:[{label:'Principal',data:principals,backgroundColor:'rgba(24,119,242,0.7)',borderRadius:4},{label:'Interest',data:interests,backgroundColor:'rgba(239,83,80,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'rgba(74,144,217,0.7)',font:{family:'League Spartan',size:11}}}},scales:{x:{stacked:true,ticks:{color:'rgba(74,144,217,0.5)',font:{family:'League Spartan',size:10}},grid:{color:'rgba(74,144,217,0.05)'}},y:{stacked:true,ticks:{color:'rgba(74,144,217,0.5)',font:{family:'League Spartan',size:10},callback:function(v){return '\u20b9'+(v>=100000?(v/100000).toFixed(1)+'L':(v>=1000?(v/1000).toFixed(0)+'K':v));}},grid:{color:'rgba(74,144,217,0.05)'}}}}});
+
+  /* amortization */
+  balance=P;
+  var rows='';
+  for(var m=1;m<=n;m++){
+    var iAmt=balance*r;
+    var pAmt=emi-iAmt;
+    balance-=pAmt;
+    if(balance<0) balance=0;
+    rows+='<tr><td>'+m+'</td><td>'+fmt(emi)+'</td><td>'+fmt(pAmt)+'</td><td>'+fmt(iAmt)+'</td><td>'+fmt(balance)+'</td></tr>';
+  }
+  document.getElementById('amort-body').innerHTML=rows;
+}
+
+/* COMPARE */
+function loanCalc(P,rate,n){
+  var r=rate/12/100;
+  if(!P||!r||!n) return null;
+  var emi=r===0?P/n:(P*r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
+  var total=emi*n;
+  return {emi:emi,total:total,interest:total-P,n:n,P:P};
+}
+
+function compareLoans(){
+  var l1=loanCalc(v('c1_amt'),v('c1_rate'),v('c1_tenure'));
+  var l2=loanCalc(v('c2_amt'),v('c2_rate'),v('c2_tenure'));
+  if(!l1||!l2) return;
+
+  document.getElementById('compare-results').classList.remove('hidden');
+
+  var winner=l1.total<=l2.total?1:2;
+  document.getElementById('w1').classList.toggle('hidden',winner!==1);
+  document.getElementById('w2').classList.toggle('hidden',winner!==2);
+  document.getElementById('loan1-card').classList.toggle('winner',winner===1);
+  document.getElementById('loan2-card').classList.toggle('winner',winner===2);
+
+  function metricRow(lbl,v1,v2,fmtFn,lowerIsBetter){
+    var better=lowerIsBetter?(v1<=v2?1:2):(v1>=v2?1:2);
+    return '<div class="compare-metric"><span class="lbl">'+lbl+'</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:0 0 10px;border-bottom:1px solid rgba(74,144,217,0.06)">' +
+      '<span class="val '+(better===1?'better':'worse')+'">'+fmtFn(v1)+'</span>' +
+      '<span class="val '+(better===2?'better':'worse')+'">'+fmtFn(v2)+'</span></div>';
+  }
+
+  var metrics=[
+    {lbl:'Monthly EMI',v1:l1.emi,v2:l2.emi,fn:fmt,low:true},
+    {lbl:'Total Payment',v1:l1.total,v2:l2.total,fn:fmt,low:true},
+    {lbl:'Total Interest',v1:l1.interest,v2:l2.interest,fn:fmt,low:true},
+    {lbl:'Interest %',v1:l1.interest/l1.total*100,v2:l2.interest/l2.total*100,fn:function(v){return v.toFixed(1)+'%';},low:true},
+    {lbl:'Tenure (mo)',v1:l1.n,v2:l2.n,fn:function(v){return v+' mo';},low:true}
+  ];
+
+  function buildMetrics(loan,isL1){
+    return metrics.map(function(m){
+      var val=isL1?m.v1:m.v2;
+      var other=isL1?m.v2:m.v1;
+      var better=m.low?(val<=other):(val>=other);
+      return '<div class="compare-metric"><span class="lbl">'+m.lbl+'</span><span class="val '+(better?'better':'worse')+'">'+m.fn(val)+'</span></div>';
+    }).join('');
+  }
+
+  document.getElementById('c1-metrics').innerHTML=buildMetrics(l1,true);
+  document.getElementById('c2-metrics').innerHTML=buildMetrics(l2,false);
+
+  var diff=Math.abs(l1.total-l2.total);
+  var diffEMI=Math.abs(l1.emi-l2.emi);
+  document.getElementById('compare-diff').innerHTML=
+    'Loan '+(winner===1?'1':'2')+' saves you <span>'+fmt(diff)+'</span> in total payments<br>' +
+    'and <span>'+fmt(diffEMI)+'</span> less per month in EMI.<br>' +
+    'Total interest difference: <span>'+fmt(Math.abs(l1.interest-l2.interest))+'</span>';
+}
+
+function resetAll(){
+  document.querySelectorAll('input[type=number]').forEach(function(i){i.value='';});
+  ['emi-results','emi-chart-card','emi-amort','compare-results'].forEach(function(id){document.getElementById(id).classList.add('hidden');});
+  if(donutChartInst){donutChartInst.destroy();donutChartInst=null;}
+  if(barChartInst){barChartInst.destroy();barChartInst=null;}
+}
+
+/* auto calc on load with defaults */
+document.getElementById('e_amt').value=500000;
+document.getElementById('e_rate').value=10.5;
+document.getElementById('e_tenure').value=60;
+calcEMI();
+</script>
+</body>
+</html>
